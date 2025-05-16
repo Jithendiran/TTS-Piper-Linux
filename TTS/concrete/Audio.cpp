@@ -1,0 +1,224 @@
+
+
+#ifndef IAUDIO
+#define IAUDIO 
+#include "../include/IAudio.hpp"
+#endif
+
+#include "concrete.hpp"
+
+class Audio: public IAudio{
+    char **args;
+    char *pgm_path;
+    int argslen = 0;
+    posix_spawn_file_actions_t action_audio;
+
+
+    bool close_ip(){
+        return close_pipe(ip_pipe[1]);
+    }
+    bool close_op(){
+        return close_pipe(op_pipe[0]);
+    }
+    bool close_err() {
+        return close_pipe(err_pipe[0]);
+    }
+
+    void close_pipes()
+    {
+        close_ip();
+        close_op();
+        close_err();
+    }
+
+    public:
+    Audio() = delete;
+    Audio(const char *pgm_path, const char *var_param[], int var_param_count = 0) {
+        int pgm_path_len = strlen(pgm_path) + 1;
+        this->pgm_path = new char[pgm_path_len];
+        strcpy(this->pgm_path, pgm_path);
+
+        argslen = var_param_count + 1; // 1-> path of pgm
+        args = new char *[argslen];
+        // path of pgm
+        args[0] = new char[pgm_path_len];
+        strcpy(args[0], pgm_path);
+
+        if (var_param && argslen > 1)
+        {
+            for (int i = 0; i < argslen - 1; i++)
+            {
+                int index = i + 1;
+                if (var_param[i])
+                {
+                    args[index] = new char[strlen(var_param[i]) + 1];
+                    strcpy(this->args[index], var_param[i]);
+                }
+                else
+                {
+                    args[index] = NULL;
+                }
+            }
+        }
+    }
+
+    bool init()
+    {
+
+        int pid;
+        posix_spawn_file_actions_init(&action_audio);
+
+        // child close
+        // closing read end for child
+        if (posix_spawn_file_actions_addclose(&action_audio, op_pipe[0]) != 0)
+        {
+            return false;
+        }
+        if (posix_spawn_file_actions_addclose(&action_audio, err_pipe[0]) != 0)
+        {
+            return false;
+        }
+        // closing write end for child
+        if (posix_spawn_file_actions_addclose(&action_audio, ip_pipe[1]) != 0)
+        {
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // redirections
+        // redirecting the stdin of child to the write end of pipe
+        if (posix_spawn_file_actions_adddup2(&action_audio, ip_pipe[0], STDIN_FILENO) != 0)
+        {
+            return false;
+        }
+        // redirecting the stdout of child to the read end of pipe
+        if (posix_spawn_file_actions_adddup2(&action_audio, op_pipe[1], STDOUT_FILENO) != 0)
+        {
+            return false;
+        }
+        // redirecting the stderr of child to the read end of pipe
+        if (posix_spawn_file_actions_adddup2(&action_audio, err_pipe[1], STDERR_FILENO) != 0)
+        {
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // closing the
+        // after redirecting the pipes, we can close the file actions
+        if (posix_spawn_file_actions_addclose(&action_audio, ip_pipe[0]) != 0)
+        {
+            return false;
+        }
+        if (posix_spawn_file_actions_addclose(&action_audio, op_pipe[1]) != 0)
+        {
+            return false;
+        }
+        if (posix_spawn_file_actions_addclose(&action_audio, err_pipe[1]) != 0)
+        {
+            return false;
+        }
+
+        extern char **environ;
+        int status = posix_spawnp(&pid, pgm_path, &action_audio, NULL, args, environ);
+        setPid(pid);
+
+        if (status != 0)
+        {
+            perror("posix_spawnp");
+            // free mem
+            return false;
+        }
+        // closing the write end of pipe in parent
+        close_pipe(ip_pipe[0]);
+        close_pipe(op_pipe[1]);
+        close_pipe(err_pipe[1]);
+
+        // fcntl(tts_op_pipe[0], F_SETFL, O_NONBLOCK);
+        // fcntl(tts_err_pipe[0], F_SETFL, O_NONBLOCK);
+        is_started();
+        return true;
+    }
+
+    bool is_started() { return can_write_audio(); }
+
+    bool can_write_audio()
+    {
+        return can_write_pipe(ip_pipe[1]);
+    }
+
+    ssize_t write(const char *buffer, ssize_t len)
+    {
+        if (buffer)
+        {
+            while (!can_write_audio())
+            {
+                usleep(100000); // free cpu
+            }
+
+            ssize_t bytesWrite = ::write(ip_pipe[1], buffer, len);
+            return bytesWrite;
+        }
+        return 0;
+    }
+
+    bool interrupt()
+    {
+        // char buffer[1000];
+        // fflush(audio_ip_pipe[1]);
+        // fsync(fileno(audio_ip_pipe[1]));  // Optional but helps
+        // stop();
+        // free pipe
+        return true;
+    }
+
+    bool stop() {
+        int pid = getPid();
+        if (check_is_process_alive())
+        {
+            close_pipes();
+            // close the pipe
+            int status;
+            pid_t result;
+            int retry = 10;
+            while ((result = waitpid(pid, &status, WNOHANG)) == 0 && retry-- > 0)
+            {
+                usleep(100000); // wait 100ms
+            }
+            if (result == 0)
+            {
+                cout << "aplay did not exit, forcing kill\n";
+                if (kill(pid, SIGKILL) == -1 ) {
+                    // force kill
+                   return false; 
+                }       
+                waitpid(pid, &status, 0); // ensure zombie cleanup
+            }
+        }
+        return true;
+    }
+
+    ~Audio()
+    {
+        int pid = getPid();
+        close_pipes();
+
+        argslen = 0;
+        posix_spawn_file_actions_destroy(&action_audio);
+        if (pgm_path)
+        {
+            delete[] pgm_path;
+            pgm_path = nullptr;
+        }
+        if (args)
+        {
+            for (int i = 0; i < argslen - 1; i++)
+            {
+                if (args[i])
+                    delete[] args[i];
+            }
+            delete[] args;
+            args = nullptr;
+        }
+        close_pipes();
+    }
+};
