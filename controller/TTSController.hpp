@@ -1,7 +1,11 @@
 #ifndef CONTROLLER_HPP
 #define CONTROLLER_HPP
-#include "../concrete/concrete.hpp"
+#include "../concrete/header/concrete.hpp"
 class TTSController{
+    Itts *tts;
+    IAudio *audio;
+    bool is_interrupt = false;
+
     public:
     TTSController(Itts *ttsEngine, IAudio *audioEngine);
     bool start();
@@ -14,5 +18,6 @@ class TTSController{
     void pause();
     void resume();
     void stop();
+    ~TTSController();
 };
 #endif
