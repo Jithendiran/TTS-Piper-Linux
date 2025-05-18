@@ -3,15 +3,10 @@
     {
       "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/include",
-        // "${workspaceFolder}/concrete/include",
-        // "${workspaceFolder}/controller/include",
-        // "${workspaceFolder}/**"
+        "${workspaceFolder}/*/include"
       ],
       "defines": [],
       "compilerPath": "/usr/bin/g++",
-      "cStandard": "c11",
-      "cppStandard": "c++17",
       "intelliSenseMode": "linux-gcc-x64"
     }
   ],
