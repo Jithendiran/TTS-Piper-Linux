@@ -1,6 +1,6 @@
 #ifndef CONTROLLER_HPP
 #define CONTROLLER_HPP
-#include "../concrete/header/concrete.hpp"
+#include "core.hpp"
 class TTSController{
     Itts *tts;
     IAudio *audio;

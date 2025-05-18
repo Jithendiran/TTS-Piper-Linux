@@ -1,6 +1,6 @@
 #ifndef PIPER_HPP
 #define PIPER_HPP
-#include "concrete.hpp"
+#include "core.hpp"
 class Piper : public Itts {
     char **args;
     char *pgm_path;

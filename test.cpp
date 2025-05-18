@@ -8,8 +8,8 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-#include "concrete/header/Piper.hpp"
-#include "concrete/header/Audio.hpp"
+#include "concrete/include/Piper.hpp"
+#include "concrete/include/Audio.hpp"
 #include "controller/TTSController.hpp"
 
 int main()

@@ -1,4 +1,4 @@
-#include "header/Piper.hpp"
+#include "Piper.hpp"
 
 int Piper::check_for_word(char *para, char *word) const
 {
