@@ -8,9 +8,9 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-#include "core/include/Piper.hpp"
-#include "core/include/Audio.hpp"
-#include "controller/include/TTSController.hpp"
+#include "../core/include/Piper.hpp"
+#include "../core/include/Audio.hpp"
+#include "../controller/include/TTSController.hpp"
 
 int main()
 {
