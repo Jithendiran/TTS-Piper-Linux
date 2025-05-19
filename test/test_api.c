@@ -1,6 +1,6 @@
+#include <stdio.h>
 #include "tts_c.h"
-#include <stdio.h>
-#include <stdio.h>
+
 int main() {
      const char *tts_args[] = {
         "--config",

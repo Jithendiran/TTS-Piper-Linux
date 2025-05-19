@@ -12,6 +12,9 @@ OBJ = $(patsubst %.cpp, build/%.o, $(SRC))
 
 all: $(OBJ)
 
+debug:
+	$(MAKE) CPPFLAGS="$(CPPFLAGS) -g" all
+
 $(BUILD)/%.o: %.cpp
 	$(dir_guard)
 	$(CC) $(CPPFLAGS) $< -o $@
