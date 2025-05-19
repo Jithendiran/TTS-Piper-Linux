@@ -1,7 +1,7 @@
 CC=g++
 AR=ar
 LIB_NAME=libttspiper
-.PHONY: all clean module dymanic static test-dymanic test-static
+.PHONY: all clean module dymanic static
 BUILD = build
 dir_guard = mkdir -p $(BUILD)
 EXCLUDE_DIRS = include $(BUILD) test
@@ -10,21 +10,13 @@ EXCLUDE_PATTERNS = $(addsuffix /, $(EXCLUDE_DIRS)) .*/
 SUBDIRS = $(filter-out $(EXCLUDE_PATTERNS), $(wildcard */))
 CORE_OBJ = core/$(BUILD)/*.o
 CTRL_OBJ = controller/$(BUILD)/*.o
+API_OBJ = api/$(BUILD)/*.o
 
 all:$(BUILD)/$(LIB_NAME).so
 
-test-dymanic:$(BUILD)/$(LIB_NAME).so $(BUILD)/test.out
-	LD_LIBRARY_PATH=$(BUILD):$$LD_LIBRARY_PATH $(BUILD)/test.out
-
-test-static:$(BUILD)/$(LIB_NAME).a $(BUILD)/test.out
-	$(BUILD)/test.out
-
-$(BUILD)/test.out: test/test.cpp 
-	$(CC) test/test.cpp -L./$(BUILD) -lttspiper -Icore/include -o $(BUILD)/test.out
-
 $(BUILD)/$(LIB_NAME).so:module
 	$(dir_guard)
-	$(CC) -shared  $(wildcard $(CORE_OBJ)) $(wildcard $(CTRL_OBJ)) -o $(BUILD)/$(LIB_NAME).so
+	$(CC) -shared  $(wildcard $(CORE_OBJ)) $(wildcard $(CTRL_OBJ)) $(wildcard $(API_OBJ)) -o $(BUILD)/$(LIB_NAME).so
 
 $(BUILD)/$(LIB_NAME).a:module
 	$(dir_guard)

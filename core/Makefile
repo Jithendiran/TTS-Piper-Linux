@@ -1,4 +1,4 @@
-cc = g++
+CC = g++
 CPPFLAGS = -c -I./include -fPIC
 
 BUILD = build

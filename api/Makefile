@@ -1,5 +1,7 @@
 CC = g++
-CPPFLAGS = -c -I./include  -I../core/include -fPIC
+INCLUDE_DIRS = $(wildcard ../*/include)
+
+CPPFLAGS = -c $(addprefix -I, $(INCLUDE_DIRS)) -fPIC
 
 BUILD = build
 dir_guard = mkdir -p $(BUILD)

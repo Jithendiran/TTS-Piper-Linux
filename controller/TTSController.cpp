@@ -94,6 +94,7 @@ void TTSController::streamAudio()
         }
     }
     cout << "stream completed........" << endl;
+    set_interrupt(false);
 }
 
 bool TTSController::is_completed()
@@ -118,6 +119,7 @@ bool TTSController::is_interrupted()
 
 void TTSController::interrupt()
 {
+    set_interrupt(true);
     tts->interrupt();
     audio->interrupt();
 }
