@@ -71,6 +71,30 @@
                 }
             ],
             "externalConsole": false
+        },
+        {
+            "name": "Attach to Process (GDB)",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/libttspiper.so",
+            "processId": "${command:pickProcess}",
+            "MIMode": "gdb",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}/build"
+                }
+            ],
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "externalConsole": false
         }
     ]
 }
