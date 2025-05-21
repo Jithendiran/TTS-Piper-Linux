@@ -5,9 +5,9 @@
 
 extern "C"
 {
-    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len)
+    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len, char is_async = 0)
     {
-        return new Piper(app_path, model_path, (const char **)tts_args, len);
+        return new Piper(app_path, model_path, (const char **)tts_args, len, (bool)is_async);
     }
 
     void *tts_create_audio(char *app_path, char *args[], int len)
@@ -25,8 +25,9 @@ extern "C"
         delete static_cast<TTSController *>(tts_ctrl);
     }
 
-    int tts_start(void *tts_ctrl) {
-        return  static_cast<TTSController *>(tts_ctrl)->start();
+    int tts_start(void *tts_ctrl)
+    {
+        return static_cast<TTSController *>(tts_ctrl)->start();
     }
 
     ssize_t tts_write(void *tts_ctrl, const char *text)

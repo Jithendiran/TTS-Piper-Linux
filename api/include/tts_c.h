@@ -5,7 +5,7 @@
 extern "C"
 {
 #endif
-    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len);
+    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len, char is_async = 0);
     void *tts_create_audio(char *app_path, char *args[], int len);
     void *tts_create(void *pip_obj, void *aud_obj);
     void tts_destroy(void *tts_ctrl);

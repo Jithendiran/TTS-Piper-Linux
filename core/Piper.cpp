@@ -9,7 +9,7 @@ int Piper::check_for_word(char *para, char *word) const
     return 0;
 }
 
-Piper::Piper(const char *pgm_path, const char *model_path, const char *var_param[], int var_param_count = 1)
+Piper::Piper(const char *pgm_path, const char *model_path, const char *var_param[], int var_param_count = 1, bool is_async = false)
 {
     int pgm_path_len = strlen(pgm_path) + 1;
     int model_path_len = strlen(model_path) + 1;
@@ -52,6 +52,7 @@ Piper::Piper(const char *pgm_path, const char *model_path, const char *var_param
             }
         }
     }
+    this->is_async = is_async;
 }
 
 bool Piper::init()
@@ -123,8 +124,8 @@ bool Piper::init()
     close_pipe(op_pipe[1]);
     close_pipe(err_pipe[1]);
 
-    // fcntl(op_pipe[0], F_SETFL, O_NONBLOCK);
-    // fcntl(err_pipe[0], F_SETFL, O_NONBLOCK);
+    setAsync(is_async);
+
     is_started();
     return true;
 }
@@ -138,13 +139,26 @@ bool Piper::is_started()
 {
     if (is_ready)
         return true;
-
+    if (!can_read_pipe(err_pipe[0]))
+        return false;
     char buffererr[1024];
     ssize_t bytesReaderr = ::read(err_pipe[0], buffererr, sizeof(buffererr) - 1);
     if (bytesReaderr == 0)
     {
         return false;
     }
+    if (bytesReaderr < 0)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // Non-blocking: no data available right now
+            return false;
+        }
+        // Other error
+        perror("read");
+        return false;
+    }
+
     buffererr[bytesReaderr] = '\0';
     string word = "Initialized piper";
 
@@ -152,16 +166,21 @@ bool Piper::is_started()
     return is_ready;
 }
 
-bool Piper::write(const char *text_data)
+ssize_t Piper::write(const char *text_data)
 {
     int len = strlen(text_data);
     if (text_data)
     {
         size_t byteswrite = ::write(ip_pipe[1], text_data, strlen(text_data));
         cout << "Process : " << len << " " << byteswrite << endl;
-        return len == byteswrite;
+        if (byteswrite >= 0) return byteswrite;
+        else if(byteswrite == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        return 0;
+        else {
+            perror("write");
+        }
     }
-    return false;
+    return 0;
 }
 
 ssize_t Piper::read(char *text_data, ssize_t len)
@@ -170,7 +189,16 @@ ssize_t Piper::read(char *text_data, ssize_t len)
     {
         return 0; // Invalid buffer or length
     }
-    return can_read() ? ::read(op_pipe[0], text_data, len) : 0;
+    if(can_read()) {
+        size_t bytesread = ::read(op_pipe[0], text_data, len);
+        if(bytesread >= 0) return bytesread;
+        else if(bytesread == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        return 0;
+        else {
+            perror("write");
+        }
+    }
+    return 0;
 }
 
 bool Piper::is_completed()
@@ -183,6 +211,17 @@ bool Piper::is_completed()
         {
             return false;
         }
+        else if (bytesReaderr == -1)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                // Non-blocking: no data available right now
+                return false;
+            }
+            // Other error
+            perror("read");
+            return false;
+        }
         buffererr[bytesReaderr] = '\0';
         string word = "Waiting for audio to finish playing";
         return check_for_word(buffererr, (char *)word.c_str());
@@ -193,26 +232,42 @@ bool Piper::is_completed()
 bool Piper::interrupt()
 {
     char buffer[1000];
-
+    ssize_t n;
     while (op_pipe[0] > 0)
     {
         if (can_read())
         {
-            ::read(op_pipe[0], buffer, sizeof(buffer));
-            continue;
+            n = ::read(op_pipe[0], buffer, sizeof(buffer));
+            if(n > 0) continue;
+            else if (n == 0) break;
+            else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break;
+                }
+                perror("read");
+                break;
+            }
         }
         else
         {
             return true;
         }
     }
-
+    n = 0;
     while (err_pipe[0] > 0)
     {
         if (can_read_pipe(err_pipe[0]))
         {
-            ::read(err_pipe[0], buffer, sizeof(buffer));
-            continue;
+            n = ::read(err_pipe[0], buffer, sizeof(buffer));
+            if(n > 0) continue;
+            else if (n == 0) break;
+            else {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break;
+                }
+                perror("read");
+                break;
+            }
         }
         else
         {
@@ -260,16 +315,53 @@ Piper::~Piper()
     }
 }
 
-// int main() {
-//      const char *tts_args[] = {
-//         "--config",
-//         "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx.json",
-//         "--output-raw", "--json-input", "--sentence-silence 0.1", "--length_scale 1.2",
-//         NULL};
-//     Piper *tts = new Piper(
-//         "/opt/calibre/bin/piper/piper",
-//         "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx",
-//         tts_args,
-//         7);
-//     return 0;
-// }
+int main() {
+     const char *tts_args[] = {
+        "--config",
+        "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx.json",
+        "--output-raw", "--json-input", "--sentence-silence 0.1", "--length_scale 1.2",
+        NULL};
+    Piper *tts = new Piper(
+        "/opt/calibre/bin/piper/piper",
+        "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx",
+        tts_args,
+        7, true);
+    char *text[] = {
+        "{\"text\": \"Hi hello i am super man.\"}\n", 
+        "{\"text\": \"Hi hello you  man.\"}\n", 
+        "{\"text\": \"A week ago a friend invited a couple of other couples over for dinner. Eventually, the food (but not the wine) was cleared off the table for what turned out to be some fierce Scrabbling. Heeding the strategy of going for the shorter, more valuable word over the longer cheaper word, our final play was Bon, which–as luck would have it!–happens to be a Japanese Buddhist festival, and not, as I had originally asserted while laying the tiles on the board, one half of a chocolate-covered cherry treat. Anyway, the strategy worked. My team only lost by 53 points instead of 58.\"}\n",
+        // "{\"text\": \"Hi hello you  man.\"}\n", 
+        NULL};
+    
+        char **add = text;
+    char buff[5000] = {0};
+    tts->init();
+    int retries = 100;
+    while (!tts->is_started() && retries-- > 0)
+    {
+        usleep(10000); // 10ms
+    }
+    while(*add) {
+        cout<< "playing :  "<<*add;
+
+        ssize_t n = tts->write(*add);
+        cout << "Total len : " << strlen(*add) << " Written : " << n << endl;        
+        ssize_t r = 0;
+        while(true) {
+            r = tts->read(buff,sizeof(buff));
+            if(r>0)
+            cout << buff << endl;
+            memset(buff, 0, r);
+            if(r <= 0 && tts->is_completed()){
+                break;
+            }
+        }
+
+        cout << "completed \n";
+        // signal done
+        *add++;
+    }
+    return 0;
+}
+
+// g++ -g -I./include Piper.cpp -o Piper.o

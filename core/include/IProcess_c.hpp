@@ -4,6 +4,62 @@ class IProcess_c
 {
 private:
     int pid = -1;
+    bool is_async = false;
+
+    virtual bool set_io_flag(int &fd, int flag)
+    {
+        int flags = fcntl(fd, F_GETFL, 0);
+        if (flags == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        if (flags & flag)
+            return true;
+        if (fcntl(fd, F_SETFL, flags | flag) == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        if (flags & flag)
+            return true;
+        return false;
+    }
+
+    virtual bool clear_io_flag(int &fd, int flag)
+    {
+        int flags = fcntl(fd, F_GETFL, 0);
+        if (flags == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        if (!(flags & flag))
+            return true;
+
+        flags &= ~flag; // Clear the  bit
+
+        if (fcntl(fd, F_SETFL, flags) == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        flags = fcntl(fd, F_GETFL, 0);
+        if (flags == -1)
+        {
+            perror("fcntl");
+            return false;
+        }
+        if (!(flags & flag))
+            return true;
+        return false;
+    }
 
 protected:
     int ip_pipe[2];
@@ -146,6 +202,103 @@ public:
         return true;
     }
 
+    virtual bool setAsync(bool flag)
+    {
+        this->is_async = flag;
+
+        if (flag)
+        {
+            if (ip_pipe[0] >= 0)
+            {
+                bool res = set_io_flag(ip_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            if (ip_pipe[1] >= 0)
+            {
+                bool res = set_io_flag(ip_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (op_pipe[0] >= 0)
+            {
+                bool res = set_io_flag(op_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (op_pipe[1] >= 0)
+            {
+                bool res = set_io_flag(op_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (err_pipe[0] >= 0)
+            {
+                bool res = set_io_flag(err_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            if (err_pipe[1] >= 0)
+            {
+                bool res = set_io_flag(err_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            return true;
+        }
+        else
+        {
+            if (ip_pipe[0] >= 0)
+            {
+                bool res = clear_io_flag(ip_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            if (ip_pipe[1] >= 0)
+            {
+                bool res = clear_io_flag(ip_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (op_pipe[0] >= 0)
+            {
+                bool res = clear_io_flag(op_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (op_pipe[1] >= 0)
+            {
+                bool res = clear_io_flag(op_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+
+            if (err_pipe[0] >= 0)
+            {
+                bool res = clear_io_flag(err_pipe[0], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            if (err_pipe[1] >= 0)
+            {
+                bool res = clear_io_flag(err_pipe[1], O_NONBLOCK);
+                if (!res)
+                    return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool isAsync()
+    {
+        return is_async;
+    }
     virtual bool init() = 0;
     virtual bool interrupt() = 0;
 
