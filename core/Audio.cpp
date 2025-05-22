@@ -54,75 +54,86 @@ Audio::Audio(const char *pgm_path, const char *var_param[], int var_param_count 
 bool Audio::init()
 {
 
-    int pid;
-    posix_spawn_file_actions_init(&action_audio);
-
-    // child close
-    // closing read end for child
-    if (posix_spawn_file_actions_addclose(&action_audio, op_pipe[0]) != 0)
+    pid_t pid;
+    pid = fork();
+    if (pid == -1)
     {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action_audio, err_pipe[0]) != 0)
-    {
-        return false;
-    }
-    // closing write end for child
-    if (posix_spawn_file_actions_addclose(&action_audio, ip_pipe[1]) != 0)
-    {
-        return false;
-    }
-    //-------------------------------------------------------------------
-
-    // redirections
-    // redirecting the stdin of child to the write end of pipe
-    if (posix_spawn_file_actions_adddup2(&action_audio, ip_pipe[0], STDIN_FILENO) != 0)
-    {
-        return false;
-    }
-    // redirecting the stdout of child to the read end of pipe
-    if (posix_spawn_file_actions_adddup2(&action_audio, op_pipe[1], STDOUT_FILENO) != 0)
-    {
-        return false;
-    }
-    // redirecting the stderr of child to the read end of pipe
-    if (posix_spawn_file_actions_adddup2(&action_audio, err_pipe[1], STDERR_FILENO) != 0)
-    {
-        return false;
-    }
-    //-------------------------------------------------------------------
-
-    // closing the
-    // after redirecting the pipes, we can close the file actions
-    if (posix_spawn_file_actions_addclose(&action_audio, ip_pipe[0]) != 0)
-    {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action_audio, op_pipe[1]) != 0)
-    {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action_audio, err_pipe[1]) != 0)
-    {
+        perror("fork");
         return false;
     }
 
-    extern char **environ;
-    int status = posix_spawnp(&pid, pgm_path, &action_audio, NULL, args, environ);
+    if (pid == 0)
+    {
+        // child
+        // when parent dies, send child SIGTERM for termination
+        prctl(PR_SET_PDEATHSIG, SIGTERM);
+        // child close
+        // closing read end for child
+        if (!close_pipe(op_pipe[0]))
+        {
+            return false;
+        }
+        if (!close_pipe(err_pipe[0]))
+        {
+            return false;
+        }
+        // closing write end for child
+        if (!close_pipe(ip_pipe[1]))
+        {
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // redirections
+        // redirecting the stdin of child to the write end of pipe
+        if (dup2(ip_pipe[0], STDIN_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        // redirecting the stdout of child to the read end of pipe
+        if (dup2(op_pipe[1], STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        // redirecting the stderr of child to the read end of pipe
+        if (dup2(err_pipe[1], STDERR_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // closing the
+        // after redirecting the pipes, we can close the file actions
+        if (!close_pipe(ip_pipe[0]))
+        {
+            return false;
+        }
+        if (!close_pipe(op_pipe[1]))
+        {
+            return false;
+        }
+        if (!close_pipe(err_pipe[1]))
+        {
+            return false;
+        }
+        // exec
+        execvp(pgm_path, args);
+        perror("execvp"); // If exec fails
+        _exit(1);
+    }
+
     setPid(pid);
-    cout << "Aplay : "<< pid << endl;
-    if (status != 0)
-    {
-        perror("posix_spawnp");
-        // free mem
-        return false;
-    }
+    cout << "Aplay : " << pid << endl;
     // closing the write end of pipe in parent
     close_pipe(ip_pipe[0]);
     close_pipe(op_pipe[1]);
     close_pipe(err_pipe[1]);
 
     setAsync(is_async);
+
     is_started();
     return true;
 }
@@ -199,7 +210,6 @@ Audio::~Audio()
     int pid = getPid();
     close_pipes();
 
-    posix_spawn_file_actions_destroy(&action_audio);
     if (pgm_path)
     {
         delete[] pgm_path;
@@ -209,7 +219,8 @@ Audio::~Audio()
     {
         for (int i = 0; i < argslen; i++)
         {
-            if (args[i]) {
+            if (args[i])
+            {
                 delete[] args[i];
                 args[i] = nullptr;
             }

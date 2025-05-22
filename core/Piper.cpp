@@ -57,68 +57,81 @@ Piper::Piper(const char *pgm_path, const char *model_path, const char *var_param
 
 bool Piper::init()
 {
-    int pid;
-    posix_spawn_file_actions_init(&action);
-
-    // child close
-    // closing read end for child
-    if (posix_spawn_file_actions_addclose(&action, op_pipe[0]) != 0)
+    pid_t pid;
+    pid = fork();
+    if (pid == -1)
     {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action, err_pipe[0]) != 0)
-    {
-        return false;
-    }
-    // closing write end for child
-    if (posix_spawn_file_actions_addclose(&action, ip_pipe[1]) != 0)
-    {
-        return false;
-    }
-    //-------------------------------------------------------------------
-
-    // redirections
-    // redirecting the stdin of child to the write end of pipe
-    if (posix_spawn_file_actions_adddup2(&action, ip_pipe[0], STDIN_FILENO) != 0)
-    {
-        return false;
-    }
-    // redirecting the stdout of child to the read end of pipe
-    if (posix_spawn_file_actions_adddup2(&action, op_pipe[1], STDOUT_FILENO) != 0)
-    {
-        return false;
-    }
-    // redirecting the stderr of child to the read end of pipe
-    if (posix_spawn_file_actions_adddup2(&action, err_pipe[1], STDERR_FILENO) != 0)
-    {
-        return false;
-    }
-    //-------------------------------------------------------------------
-
-    // closing the
-    // after redirecting the pipes, we can close the file actions
-    if (posix_spawn_file_actions_addclose(&action, ip_pipe[0]) != 0)
-    {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action, op_pipe[1]) != 0)
-    {
-        return false;
-    }
-    if (posix_spawn_file_actions_addclose(&action, err_pipe[1]) != 0)
-    {
+        perror("fork");
         return false;
     }
 
-    int status = posix_spawnp(&pid, pgm_path, &action, NULL, args, NULL);
+    if (pid == 0)
+    {
+        // child
+        // when parent dies, send child SIGTERM for termination
+        prctl(PR_SET_PDEATHSIG, SIGTERM);
+        // child close
+        // closing read end for child
+        if (!close_pipe(op_pipe[0]))
+        {
+            return false;
+        }
+        if (!close_pipe(err_pipe[0]))
+        {
+            return false;
+        }
+        // closing write end for child
+        if (!close_pipe(ip_pipe[1]))
+        {
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // redirections
+        // redirecting the stdin of child to the write end of pipe
+        if (dup2(ip_pipe[0], STDIN_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        // redirecting the stdout of child to the read end of pipe
+        if (dup2(op_pipe[1], STDOUT_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        // redirecting the stderr of child to the read end of pipe
+        if (dup2(err_pipe[1], STDERR_FILENO) == -1)
+        {
+            perror("dup2");
+            return false;
+        }
+        //-------------------------------------------------------------------
+
+        // closing the
+        // after redirecting the pipes, we can close the file actions
+        if (!close_pipe(ip_pipe[0]))
+        {
+            return false;
+        }
+        if (!close_pipe(op_pipe[1]))
+        {
+            return false;
+        }
+        if (!close_pipe(err_pipe[1]))
+        {
+            return false;
+        }
+
+        // exec
+        execvp(pgm_path, args);
+        perror("execvp"); // If exec fails
+        _exit(1);
+    }
+
     setPid(pid);
     cout << "Piper :: " << pid << endl;
-    if (status != 0)
-    {
-        perror("posix_spawnp");
-        // free mem
-        return false;
-    }
+
     // closing the write end of pipe in parent
     close_pipe(ip_pipe[0]);
     close_pipe(op_pipe[1]);
@@ -173,10 +186,12 @@ ssize_t Piper::write(const char *text_data)
     {
         size_t byteswrite = ::write(ip_pipe[1], text_data, strlen(text_data));
         cout << "Process : " << len << " " << byteswrite << endl;
-        if (byteswrite >= 0) return byteswrite;
-        else if(byteswrite == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        return 0;
-        else {
+        if (byteswrite >= 0)
+            return byteswrite;
+        else if (byteswrite == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return 0;
+        else
+        {
             perror("write");
         }
     }
@@ -189,12 +204,15 @@ ssize_t Piper::read(char *text_data, ssize_t len)
     {
         return 0; // Invalid buffer or length
     }
-    if(can_read()) {
+    if (can_read())
+    {
         size_t bytesread = ::read(op_pipe[0], text_data, len);
-        if(bytesread >= 0) return bytesread;
-        else if(bytesread == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        return 0;
-        else {
+        if (bytesread >= 0)
+            return bytesread;
+        else if (bytesread == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return 0;
+        else
+        {
             perror("write");
         }
     }
@@ -238,10 +256,14 @@ bool Piper::interrupt()
         if (can_read())
         {
             n = ::read(op_pipe[0], buffer, sizeof(buffer));
-            if(n > 0) continue;
-            else if (n == 0) break;
-            else {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            if (n > 0)
+                continue;
+            else if (n == 0)
+                break;
+            else
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
                     break;
                 }
                 perror("read");
@@ -259,10 +281,14 @@ bool Piper::interrupt()
         if (can_read_pipe(err_pipe[0]))
         {
             n = ::read(err_pipe[0], buffer, sizeof(buffer));
-            if(n > 0) continue;
-            else if (n == 0) break;
-            else {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            if (n > 0)
+                continue;
+            else if (n == 0)
+                break;
+            else
+            {
+                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                {
                     break;
                 }
                 perror("read");
@@ -289,7 +315,6 @@ Piper::~Piper()
 
     close_pipe(err_pipe[0]);
 
-    posix_spawn_file_actions_destroy(&action);
     if (pgm_path)
     {
         delete[] pgm_path;
@@ -305,7 +330,8 @@ Piper::~Piper()
     {
         for (int i = 0; i < argslen; i++)
         {
-            if (args[i]){
+            if (args[i])
+            {
                 delete[] args[i];
                 args[i] = nullptr;
             }
