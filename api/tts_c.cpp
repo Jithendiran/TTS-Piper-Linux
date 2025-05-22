@@ -5,14 +5,14 @@
 
 extern "C"
 {
-    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len, char is_async = 0)
+    void *tts_create_piper(char *app_path, char *model_path, char *tts_args[], int len, char is_async)
     {
         return new Piper(app_path, model_path, (const char **)tts_args, len, (bool)is_async);
     }
 
-    void *tts_create_audio(char *app_path, char *args[], int len)
+    void *tts_create_audio(char *app_path, char *args[], int len,  char is_async)
     {
-        return new Audio(app_path, (const char **)args, len);
+        return new Audio(app_path, (const char **)args, len, (bool)is_async);
     }
 
     void *tts_create(void *pip_obj, void *aud_obj)

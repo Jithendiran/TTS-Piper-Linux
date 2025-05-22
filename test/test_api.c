@@ -18,10 +18,11 @@ int main() {
         "/opt/calibre/bin/piper/piper",
         "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx",
         tts_args,
-        7
+        7,
+        0
     );
     const char *alsa_args[] = {"-f", "S16_LE", "-r", "22050", "-q", NULL};
-    void* audio = tts_create_audio("aplay", alsa_args, 5);
+    void* audio = tts_create_audio("aplay", alsa_args, 5, 0);
 
     void* tts_ctrl = tts_create(piper, audio);
 

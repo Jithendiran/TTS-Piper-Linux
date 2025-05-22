@@ -69,12 +69,10 @@ void TTSController::streamAudio()
         // improve read complete store in local use that for audio
         size_t bytes_read = tts->read(buffer, sizeof(buffer));
 
-        cout << "Piper read : "<<bytes_read <<endl;
         size_t bytes_write = 0;
         while (bytes_read > bytes_write)
         {
             bytes_write = audio->write(buffer + bytes_write, bytes_read);
-            cout << "Bytes write : " << bytes_write <<endl;
             if (bytes_read == bytes_write)
                 break;
             if (bytes_read > bytes_write)
@@ -143,7 +141,5 @@ void TTSController::stop()
 }
 TTSController::~TTSController()
 {
-    delete tts;
-    delete audio;
     is_interrupt = false;
 }

@@ -20,7 +20,7 @@ void Audio::close_pipes()
     close_err();
 }
 
-Audio::Audio(const char *pgm_path, const char *var_param[], int var_param_count = 0)
+Audio::Audio(const char *pgm_path, const char *var_param[], int var_param_count = 0, bool is_async = false)
 {
     int pgm_path_len = strlen(pgm_path) + 1;
     this->pgm_path = new char[pgm_path_len];
@@ -48,6 +48,7 @@ Audio::Audio(const char *pgm_path, const char *var_param[], int var_param_count 
             }
         }
     }
+    this->is_async = is_async;
 }
 
 bool Audio::init()
@@ -109,7 +110,7 @@ bool Audio::init()
     extern char **environ;
     int status = posix_spawnp(&pid, pgm_path, &action_audio, NULL, args, environ);
     setPid(pid);
-
+    cout << "Aplay : "<< pid << endl;
     if (status != 0)
     {
         perror("posix_spawnp");
@@ -121,8 +122,7 @@ bool Audio::init()
     close_pipe(op_pipe[1]);
     close_pipe(err_pipe[1]);
 
-    // fcntl(tts_op_pipe[0], F_SETFL, O_NONBLOCK);
-    // fcntl(tts_err_pipe[0], F_SETFL, O_NONBLOCK);
+    setAsync(is_async);
     is_started();
     return true;
 }
@@ -143,8 +143,15 @@ ssize_t Audio::write(const char *buffer, ssize_t len)
             usleep(100000); // free cpu
         }
 
-        ssize_t bytesWrite = ::write(ip_pipe[1], buffer, len);
-        return bytesWrite;
+        ssize_t byteswritten = ::write(ip_pipe[1], buffer, len);
+        if (byteswritten >= 0)
+            return byteswritten;
+        else if (byteswritten == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return 0;
+        else
+        {
+            perror("write");
+        }
     }
     return 0;
 }
@@ -192,7 +199,6 @@ Audio::~Audio()
     int pid = getPid();
     close_pipes();
 
-    argslen = 0;
     posix_spawn_file_actions_destroy(&action_audio);
     if (pgm_path)
     {
@@ -201,13 +207,16 @@ Audio::~Audio()
     }
     if (args)
     {
-        for (int i = 0; i < argslen - 1; i++)
+        for (int i = 0; i < argslen; i++)
         {
-            if (args[i])
+            if (args[i]) {
                 delete[] args[i];
+                args[i] = nullptr;
+            }
         }
         delete[] args;
         args = nullptr;
     }
+    argslen = 0;
     close_pipes();
 }

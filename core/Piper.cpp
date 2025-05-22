@@ -112,7 +112,7 @@ bool Piper::init()
 
     int status = posix_spawnp(&pid, pgm_path, &action, NULL, args, NULL);
     setPid(pid);
-
+    cout << "Piper :: " << pid << endl;
     if (status != 0)
     {
         perror("posix_spawnp");
@@ -280,7 +280,6 @@ bool Piper::interrupt()
 
 Piper::~Piper()
 {
-    argslen = 0;
     is_ready = false;
     is_processed = false;
 
@@ -306,62 +305,15 @@ Piper::~Piper()
     {
         for (int i = 0; i < argslen; i++)
         {
-            if (args[i])
+            if (args[i]){
                 delete[] args[i];
-            args[i] = nullptr;
+                args[i] = nullptr;
+            }
         }
         delete[] args;
         args = nullptr;
     }
+    argslen = 0;
 }
 
-int main() {
-     const char *tts_args[] = {
-        "--config",
-        "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx.json",
-        "--output-raw", "--json-input", "--sentence-silence 0.1", "--length_scale 1.2",
-        NULL};
-    Piper *tts = new Piper(
-        "/opt/calibre/bin/piper/piper",
-        "/home/jidesh/.cache/calibre/piper-voices/en_US-hfc_male-medium.onnx",
-        tts_args,
-        7, true);
-    char *text[] = {
-        "{\"text\": \"Hi hello i am super man.\"}\n", 
-        "{\"text\": \"Hi hello you  man.\"}\n", 
-        "{\"text\": \"A week ago a friend invited a couple of other couples over for dinner. Eventually, the food (but not the wine) was cleared off the table for what turned out to be some fierce Scrabbling. Heeding the strategy of going for the shorter, more valuable word over the longer cheaper word, our final play was Bon, which–as luck would have it!–happens to be a Japanese Buddhist festival, and not, as I had originally asserted while laying the tiles on the board, one half of a chocolate-covered cherry treat. Anyway, the strategy worked. My team only lost by 53 points instead of 58.\"}\n",
-        // "{\"text\": \"Hi hello you  man.\"}\n", 
-        NULL};
-    
-        char **add = text;
-    char buff[5000] = {0};
-    tts->init();
-    int retries = 100;
-    while (!tts->is_started() && retries-- > 0)
-    {
-        usleep(10000); // 10ms
-    }
-    while(*add) {
-        cout<< "playing :  "<<*add;
-
-        ssize_t n = tts->write(*add);
-        cout << "Total len : " << strlen(*add) << " Written : " << n << endl;        
-        ssize_t r = 0;
-        while(true) {
-            r = tts->read(buff,sizeof(buff));
-            if(r>0)
-            cout << buff << endl;
-            memset(buff, 0, r);
-            if(r <= 0 && tts->is_completed()){
-                break;
-            }
-        }
-
-        cout << "completed \n";
-        // signal done
-        *add++;
-    }
-    return 0;
-}
-
-// g++ -g -I./include Piper.cpp -o Piper.o
+// clear && g++ -g -I./include Piper.cpp -o Piper.o && valgrind -s --leak-check=full ./Piper.o

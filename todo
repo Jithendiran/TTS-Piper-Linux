@@ -1,5 +1,7 @@
 * Async read
 * piper complete read
+* when parent die unexpectedly or parent restart it self, child process is not killed
+    have to use ` prctl(PR_SET_PDEATHSIG, SIGTERM);` inside child process, since posix_spawn is used no way to call that or change  to fork + execvp
 * Bug fixes
 -----------------------
 * parallel execution 
