@@ -182,25 +182,27 @@ bool Piper::is_started()
 ssize_t Piper::write(const char *text_data)
 {
     int len = strlen(text_data);
-    if (text_data)
+    if (len <= 0 || text_data == nullptr)
     {
-        size_t byteswrite = ::write(ip_pipe[1], text_data, strlen(text_data));
-        cout << "Process : " << len << " " << byteswrite << endl;
-        if (byteswrite >= 0)
-            return byteswrite;
-        else if (byteswrite == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-            return 0;
-        else
-        {
-            perror("write");
-        }
+        return 0;
+    }
+
+    ssize_t byteswrite = ::write(ip_pipe[1], text_data, strlen(text_data));
+    cout << "Process : " << len << " " << byteswrite << endl;
+    if (byteswrite >= 0)
+        return byteswrite;
+    else if (byteswrite == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        return 0;
+    else
+    {
+        perror("write");
     }
     return 0;
 }
 
 ssize_t Piper::read(char *text_data, ssize_t len)
 {
-    if (len <= 0 & text_data == NULL)
+    if (len <= 0 && text_data == NULL)
     {
         return 0; // Invalid buffer or length
     }

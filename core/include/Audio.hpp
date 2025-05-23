@@ -3,7 +3,6 @@
 #include "core.hpp"
 class Audio : public IAudio
 {
-    posix_spawn_file_actions_t action_audio;
     int argslen = 0;
     char **args;
     char *pgm_path;

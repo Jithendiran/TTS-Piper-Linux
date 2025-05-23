@@ -10,7 +10,6 @@ class Piper : public Itts {
     char *pgm_path;
     char *model_path;
 
-    posix_spawn_file_actions_t action;
     int check_for_word(char *para, char *word) const;
 
     public:

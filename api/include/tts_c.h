@@ -11,6 +11,7 @@ extern "C"
     void tts_destroy(void *tts_ctrl);
     int tts_start(void *tts_ctrl);
     ssize_t tts_write(void *tts_ctrl, const char *text);
+    void tts_play_audio(void *tts_ctrl);
     void tts_streamAudio(void *tts_ctrl);
     int tts_is_completed(void *tts_ctrl);
     void tts_interrupt(void *tts_ctrl);

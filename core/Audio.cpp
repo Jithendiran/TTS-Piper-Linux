@@ -147,23 +147,33 @@ bool Audio::can_write_audio()
 
 ssize_t Audio::write(const char *buffer, ssize_t len)
 {
-    if (buffer)
+    if (len <= 0 || buffer == nullptr)
     {
-        while (!can_write_audio())
-        {
-            usleep(100000); // free cpu
-        }
-
-        ssize_t byteswritten = ::write(ip_pipe[1], buffer, len);
-        if (byteswritten >= 0)
-            return byteswritten;
-        else if (byteswritten == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-            return 0;
-        else
-        {
-            perror("write");
-        }
+        return 0;
     }
+
+    int retries = 50; // 5 seconds max (50 * 100ms)
+    while (!can_write_audio() && retries-- > 0)
+    {
+        usleep(100000); // 100ms
+    }
+
+    if (retries <= 0)
+    {
+        std::cerr << "[Audio::write] Timeout: pipe not writable after 5 seconds\n";
+        return 0;
+    }
+
+    ssize_t byteswritten = ::write(ip_pipe[1], buffer, len);
+    if (byteswritten >= 0)
+        return byteswritten;
+    else if (byteswritten == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        return 0;
+    else
+    {
+        perror("write");
+    }
+
     return 0;
 }
 

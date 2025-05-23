@@ -35,6 +35,10 @@ extern "C"
         return static_cast<TTSController *>(tts_ctrl)->write(text);
     }
 
+    void tts_play_audio(void *tts_ctrl) {
+        static_cast<TTSController *>(tts_ctrl)->playAudio();
+    }
+
     void tts_streamAudio(void *tts_ctrl)
     {
         static_cast<TTSController *>(tts_ctrl)->streamAudio();

@@ -1,5 +1,8 @@
 #include "TTSController.hpp"
 
+volatile bool is_playing = false;
+volatile bool is_stopped = false;
+
 TTSController::TTSController(Itts *ttsEngine, IAudio *audioEngine)
     : tts(ttsEngine), audio(audioEngine) {}
 
@@ -39,22 +42,63 @@ bool TTSController::start()
 
 bool TTSController::write(const char *text)
 {
-    if (is_interrupted())
+    if (is_stopped)
     {
+        cout << "Process is not running restart the process" << endl;
+        return;
+    }
+    // only when it is not interrupted and not being played, it is allowed to write
+    if (is_playing || is_interrupted())
+    {
+        cout << "Audio is playing or interrupted" << endl;
         return false;
     }
     return tts->write(text);
 }
 
-void TTSController::streamAudio()
+void TTSController::playAudio()
 {
-    cout << "stream started........" << endl;
-
-    while (!tts->can_read())
+    if (is_stopped)
     {
-        usleep(1000);
+        cout << "Process is not running restart the process" << endl;
+        return;
     }
 
+    // if currently audio is playing it won't allow till it completed
+    if (is_playing)
+        return;
+    // Launch streamAudio in a new thread
+    std::thread([this]()
+                { this->streamAudio(); })
+        .detach(); // Detach so it runs independently
+}
+
+void TTSController::streamAudio()
+{
+    if (is_stopped)
+    {
+        cout << "Process is not running restart the process" << endl;
+        return;
+    }
+
+    // if currently audio is playing it won't allow till it completed
+    if (is_playing)
+        return;
+    cout << "stream started........" << endl;
+
+    int retries = 50; // 5 seconds max (50 * 100ms)
+    while (!tts->can_read() && retries-- > 0)
+    {
+        usleep(100000); // 100ms
+    }
+
+    if (retries <= 0)
+    {
+        std::cerr << "[TTSController::streamAudio] Timeout: pipe not writable after 5 seconds\n";
+        return;
+    }
+
+    is_playing = true;
     cout << "Piper ready" << endl;
 
     char buffer[20000];
@@ -91,13 +135,14 @@ void TTSController::streamAudio()
             break;
         }
     }
+    is_playing = false;
     cout << "stream completed........" << endl;
     set_interrupt(false);
 }
 
 bool TTSController::is_completed()
 {
-    if (audio->can_write_audio())
+    if (!is_playing && audio->can_write_audio())
     {
         usleep(2000000); // for current audio to complete
         return true;
@@ -136,10 +181,14 @@ void TTSController::resume()
 
 void TTSController::stop()
 {
+    if (is_playing)
+        interrupt();
+    is_stopped = true;
     tts->stop();
     audio->stop();
 }
 TTSController::~TTSController()
 {
+    is_playing = false;
     is_interrupt = false;
 }
