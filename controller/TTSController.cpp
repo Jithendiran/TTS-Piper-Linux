@@ -45,7 +45,7 @@ bool TTSController::write(const char *text)
     if (is_stopped)
     {
         cout << "Process is not running restart the process" << endl;
-        return;
+        return false;
     }
     // only when it is not interrupted and not being played, it is allowed to write
     if (is_playing || is_interrupted())
@@ -101,9 +101,9 @@ void TTSController::streamAudio()
     is_playing = true;
     cout << "Piper ready" << endl;
 
-    char buffer[20000];
+    char buffer[65536];
 
-    while (tts->can_read())
+    while (tts->can_read()) // have to change the logic
     {
         if (is_interrupted())
         {
@@ -112,22 +112,30 @@ void TTSController::streamAudio()
         }
         // improve read complete store in local use that for audio
         size_t bytes_read = tts->read(buffer, sizeof(buffer));
+        // cout << "Piper : " << bytes_read <<endl;
 
-        size_t bytes_write = 0;
-        while (bytes_read > bytes_write)
+        const size_t period_size = 2756;
+        size_t total_written = 0;
+
+        while (total_written < bytes_read)
         {
-            bytes_write = audio->write(buffer + bytes_write, bytes_read);
-            if (bytes_read == bytes_write)
-                break;
-            if (bytes_read > bytes_write)
+            if (is_interrupted())
             {
-                bytes_read -= bytes_write;
-                if (bytes_read <= 0)
-                    break;
+                interrupt();
+                break;
+            } 
+            size_t to_write = std::min(period_size, bytes_read - total_written);
+            ssize_t written = audio->write(buffer + total_written, to_write);
+            if (written > 0)
+            {
+                total_written += written;
             }
+            else
+            {
+                usleep(1000); // avoid busy wait
+            }
+            // cout << "Aplay : " << written << ", " << total_written <<endl;
         }
-
-        memset(buffer, 0, sizeof(buffer));
 
         if (!tts->can_read() && bytes_read == 0 && tts->is_completed())
         {
@@ -162,9 +170,12 @@ bool TTSController::is_interrupted()
 
 void TTSController::interrupt()
 {
+    cout << "Interrupt started" << endl;
     set_interrupt(true);
     tts->interrupt();
+    cout << "TTS Interrupt completed" << endl;
     audio->interrupt();
+    cout << "Audio Interrupt completed " << endl;
 }
 
 void TTSController::pause()
