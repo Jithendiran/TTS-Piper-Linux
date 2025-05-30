@@ -65,15 +65,15 @@ Example
 > once buffer is filled buffer_size/period_size cycle is required to empty the buffer  
 > Eg: buffer_size = 11025 frames, period_size = 2756 => 11025 / 2756 ≈ 4 periods to empty the buffer
 
-**period_time** The duration (in microseconds) of one period (period_size), calculated as period_size / sample_rate * 1,000,000 = 2756/22050 = 0.124988662 * 1,000,000 = 124988.662 microseconds or about 125 ms
+**period_time** The duration (in microseconds) of one period (period_size), calculated as period_size / sample_rate * 1,000,000 = 2756/22050 = 0.124988662 * 1,000,000 = 124988.662 microseconds or about 125 ms  
 
-**avail_min** when the buffer down to avail_min size, ALSA notifies the application to write more data.
- eg: now buffer is full 11025
- period         buffer left          Notes
- 1              11025 - 2756 = 8269
- 2              8269  - 2756 = 5513
- 3              5513  - 2756 = 2757  alomost ask for data
- 4              2757  - 2756 = 1     now buffer available size is below avail_min, now ALSA ask for more data
+**avail_min** when the buffer down to avail_min size, ALSA notifies the application to write more data.  
+ eg: now buffer is full 11025  
+ period         buffer left          Notes  
+ 1              11025 - 2756 = 8269  
+ 2              8269  - 2756 = 5513  
+ 3              5513  - 2756 = 2757  alomost ask for data  
+ 4              2757  - 2756 = 1     now buffer available size is below avail_min, now ALSA ask for more data  
 
 **start_threshold** The number of frames that must be in the buffer before playback actually starts. Playback will wait until this threshold is reached.
 ```

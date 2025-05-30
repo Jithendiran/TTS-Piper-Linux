@@ -112,7 +112,6 @@ void TTSController::streamAudio()
         }
         // improve read complete store in local use that for audio
         size_t bytes_read = tts->read(buffer, sizeof(buffer));
-        // cout << "Piper : " << bytes_read <<endl;
 
         const size_t period_size = 2756;
         size_t total_written = 0;
@@ -134,10 +133,9 @@ void TTSController::streamAudio()
             {
                 usleep(1000); // avoid busy wait
             }
-            // cout << "Aplay : " << written << ", " << total_written <<endl;
         }
 
-        if (!tts->can_read() && bytes_read == 0 && tts->is_completed())
+        if (!tts->can_read() && total_written >= bytes_read && tts->is_completed())
         {
             cout << " IS complete" << endl;
             break;
@@ -152,8 +150,8 @@ bool TTSController::is_completed()
 {
     if (!is_playing && audio->can_write_audio())
     {
-        usleep(2000000); // for current audio to complete
-        return true;
+        usleep(1050000); // for current audio to complete
+        return audio->can_write_audio();
     }
     return false;
 }
