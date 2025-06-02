@@ -101,7 +101,8 @@ void TTSController::streamAudio()
     is_playing = true;
     cout << "Piper ready" << endl;
 
-    char buffer[65536];
+    char buffer[22050]; //  buffer_size (frames) * channel * (msbits / 8) = 11025 * 1 * 2 = 22050 bytes
+    const size_t period_size = 2756;
 
     while (tts->can_read()) // have to change the logic
     {
@@ -113,7 +114,6 @@ void TTSController::streamAudio()
         // improve read complete store in local use that for audio
         size_t bytes_read = tts->read(buffer, sizeof(buffer));
 
-        const size_t period_size = 2756;
         size_t total_written = 0;
 
         while (total_written < bytes_read)
@@ -123,7 +123,7 @@ void TTSController::streamAudio()
                 interrupt();
                 break;
             } 
-            size_t to_write = std::min(period_size, bytes_read - total_written);
+            size_t to_write = bytes_read - total_written; //std::min(period_size, bytes_read - total_written);
             ssize_t written = audio->write(buffer + total_written, to_write);
             if (written > 0)
             {
@@ -150,7 +150,7 @@ bool TTSController::is_completed()
 {
     if (!is_playing && audio->can_write_audio())
     {
-        usleep(1050000); // for current audio to complete
+        usleep(1500000); // for current audio to complete
         return audio->can_write_audio();
     }
     return false;

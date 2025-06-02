@@ -41,7 +41,18 @@ LE = Little Endian (byte order)
 
 ```
 
-**Rate** refers to the audio sample rate, which is the number of samples per second per channel.  
+**Rate** refers to the audio sample rate, which is the number of samples per second per channel.  sample rate means how often an analog signal is measured per sec during recoring.
+
+eg:  
+    rate = 22050 hz means per second 22050 samples are captured. When playing back digital audio, your system reads the samples at the same rate they were recorded  
+    * Every second, the microphone captures 22050 tiny snapshots of the sound wave.  
+    * These snapshots are stored as digital values (based on bit depth, e.g., 16-bit or 24-bit).  
+    * When played back, your speakers reconstruct the waveform using those 44,100 points for every second of audio.  
+
+One digital value is called sample. More samples are collected to frames (frame is terminology for ALSA) depending on count of converters used at one specific time  
+    * when only one converter is used - mono  
+    * when only two converter is used - stereo  
+
 **Exact rate** The actual sample rate that the hardware or driver is using. Sometimes, the hardware cannot match the requested rate exactly, so it uses the closest possible value
 
 Example
@@ -86,3 +97,25 @@ ALSA will notify your application to write more data when the available space re
 **stop_threshold** If the buffer drops below this, playback stops
 
 **silence_size** The number of frames that will be filled with silence if the application does not provide enough data.
+
+Audio contains **sample**, sample is the smallest unit of audio. 
+
+How much samples needs for 1 sec audio?  
+
+    **rate** is answer  
+    For 1 sec 22050 sample is needed
+
+Buffer size of aplay is 11025 frames  
+
+    how much memory do we need to allocate for aplay buffer?  
+    buffer_size (frames) * channel * (msbits / 8) bytes
+    for mono:  
+        11025 * 1 * 2 = 22050 bytes
+    for stero:  
+        11025 * 2 * 2 = 44100 bytes  
+
+Genaral
+---------------------------
+* ALSA uses the ring buffer to store outgoing (playback) and incoming (capture, record) samples.
+* There are two pointers being maintained to allow a precise communication between application and device pointing to current processed sample by hardware and last processed sample by application.
+* In modern audio chip the stream of samples is divided to small chunks. Device acknowledges to application when the transfer of a chunk is complete.
