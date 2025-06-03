@@ -4,7 +4,7 @@ LIB_NAME=libttspiper
 .PHONY: all clean module dymanic static
 BUILD = build
 dir_guard = mkdir -p $(BUILD)
-EXCLUDE_DIRS = include $(BUILD) doc test log
+EXCLUDE_DIRS = include $(BUILD) doc test log poc
 EXCLUDE_PATTERNS = $(addsuffix /, $(EXCLUDE_DIRS)) .*/
 FLAG=
 SUBDIRS = $(filter-out $(EXCLUDE_PATTERNS), $(wildcard */))
