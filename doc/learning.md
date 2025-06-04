@@ -26,7 +26,7 @@ silence_size : 0
 boundary     : 6206523236469964800
 ```
 
-**Frame** is a set of audio samples, one for each channel, at a single point in time 
+**Frame** is a set of audio samples, one for each channel, at a single point in time (Not in minutes or seconds)
 * For mono audio (1 channel), 1 frame = 1 sample.
 * For stereo audio (2 channels), 1 frame = 2 samples (one for left, one for right).
 
@@ -41,10 +41,10 @@ LE = Little Endian (byte order)
 
 ```
 
-**Rate** refers to the audio sample rate, which is the number of samples per second per channel.  sample rate means how often an analog signal is measured per sec during recoring.
+**Rate** refers to the audio frame rate, which is the number of frames per second per channel.  frame rate means how often an analog signal is measured per sec during recoring. 1 frame is NOT equal to 1 second  , frame rate (e.g., 22050 Hz) tells you how many frames are in 1 second
 
 eg:  
-    rate = 22050 hz means per second 22050 samples are captured. When playing back digital audio, your system reads the samples at the same rate they were recorded  
+    rate = 22050 hz means per second 22050 frames are captured. When playing back digital audio, your system reads the frames at the same rate they were recorded  
     * Every second, the microphone captures 22050 tiny snapshots of the sound wave.  
     * These snapshots are stored as digital values (based on bit depth, e.g., 16-bit or 24-bit).  
     * When played back, your speakers reconstruct the waveform using those 44,100 points for every second of audio.  
@@ -53,7 +53,7 @@ One digital value is called sample. More samples are collected to frames (frame 
     * when only one converter is used - mono  
     * when only two converter is used - stereo  
 
-**Exact rate** The actual sample rate that the hardware or driver is using. Sometimes, the hardware cannot match the requested rate exactly, so it uses the closest possible value
+**Exact rate** The actual frame rate that the hardware or driver is using. Sometimes, the hardware cannot match the requested rate exactly, so it uses the closest possible value
 
 Example
 -------
@@ -61,12 +61,22 @@ Example
 -> If audio is mono, 16-bit, 22050 Hz:  
     - 1 sample = 2 bytes (since 16 bits = 2 bytes, 1 channel)  
     - 1 frame = 1 sample = 2 bytes  
-    - For 1 second: 22050 frames × 2 bytes = 44,100 bytes  
+    - For 1 sec: 22050 frames × 2 bytes = 44,100 bytes  
+    - For 1 sec 22050 frames will be captured, each frame size has 2 bytes of size
+    - 1 frame play back time is  1 / 22050 ~= 0.00004535 seconds per frame
 
 -> If audio is stereo, 16-bit, 22050 Hz:  
     - 1 sample = 2 bytes (per channel)  
     - 1 frame = 2 samples (left + right) = 4 bytes  
-    - For 1 second: 22050 frames × 4 bytes = 88,200 bytes  
+    - For 1 sec: 22050 frames × 4 bytes = 88,200 bytes  
+    - For 1 sec 22050 frames will be captured, each frame size has 4 bytes of size
+    - 1 frame play back time is  1 / 22050 ~= 0.00004535 seconds per frame
+
+| Channel | Sample Rate | Sample Size | Frame Size | Bytes/sec |
+| ------- | ----------- | ----------- | ---------- | --------- |
+| Mono    | 22050       | 2 bytes     | 2 bytes    | 44,100    |
+| Stereo  | 22050       | 2 bytes     | 4 bytes    | 88,200    |
+
 
 ------------------------
 **buffer_size** The total size of the audio buffer (in frames). This is the maximum amount of audio data that can be queued for playback at once.  
@@ -98,12 +108,12 @@ ALSA will notify your application to write more data when the available space re
 
 **silence_size** The number of frames that will be filled with silence if the application does not provide enough data.
 
-Audio contains **sample**, sample is the smallest unit of audio. 
+Audio contains **sample**, sample is the smallest unit of audio. sample are collected to form the frame
 
-How much samples needs for 1 sec audio?  
+How much frames needs for 1 sec audio?  
 
     **rate** is answer  
-    For 1 sec 22050 sample is needed
+    For 1 sec 22050 frame is needed
 
 Buffer size of aplay is 11025 frames  
 
@@ -119,3 +129,39 @@ Genaral
 * ALSA uses the ring buffer to store outgoing (playback) and incoming (capture, record) samples.
 * There are two pointers being maintained to allow a precise communication between application and device pointing to current processed sample by hardware and last processed sample by application.
 * In modern audio chip the stream of samples is divided to small chunks. Device acknowledges to application when the transfer of a chunk is complete.
+
+
+Time measurement
+----------------------------
+Time Units (from largest to smallest):
+
+seconds (s)
+milliseconds (ms) = 1/1000 second = 0.001 s
+microseconds (µs) = 1/1000000 second = 0.000001 s
+nanoseconds (ns) = 1/1000000000 second = 0.000000001 s
+
+Frame Timing (at 22050 Hz)
+-------------------------
+1 frame playback time = 1/22050 seconds
+- In seconds: 0.000045351 seconds
+- In milliseconds: 0.045351 ms
+- In microseconds: 45.351 µs
+
+This means each frame (whether mono or stereo) is played for approximately:
+- 45.351 microseconds
+- 0.045351 milliseconds
+- 0.000045351 seconds
+
+if need buffer for playback of 750ms = (1/22050 = 0.045351) × 750 = 34.01325 is 34 frames approx, 34 * 2 (size of sample) = 68 bytes
+
+Buffer Size Calculation Example
+-----------------------------
+If we need buffer for playback of 750ms:
+- Frames needed = sample_rate × (time_ms/1000)
+- Frames = 22050 × (750/1000) = 16538 frames
+
+For mono (16-bit):
+- Buffer size = 16538 frames × 2 bytes = 33076 bytes
+
+For stereo (16-bit):
+- Buffer size = 16538 frames × 4 bytes = 66152 bytes
