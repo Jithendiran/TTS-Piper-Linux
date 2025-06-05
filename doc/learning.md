@@ -26,7 +26,7 @@ silence_size : 0
 boundary     : 6206523236469964800
 ```
 
-**Frame** is a set of audio samples, one for each channel, at a single point in time (Not in minutes or seconds)
+**Frame** is a set of audio samples, one for each channel, at a single point in time (It can be minutes or seconds or millisecond or ...)
 * For mono audio (1 channel), 1 frame = 1 sample.
 * For stereo audio (2 channels), 1 frame = 2 samples (one for left, one for right).
 
@@ -47,7 +47,7 @@ eg:
     rate = 22050 hz means per second 22050 frames are captured. When playing back digital audio, your system reads the frames at the same rate they were recorded  
     * Every second, the microphone captures 22050 tiny snapshots of the sound wave.  
     * These snapshots are stored as digital values (based on bit depth, e.g., 16-bit or 24-bit).  
-    * When played back, your speakers reconstruct the waveform using those 44,100 points for every second of audio.  
+    * When played back, your speakers reconstruct the waveform using those 22050 points for every second of audio.  
 
 One digital value is called sample. More samples are collected to frames (frame is terminology for ALSA) depending on count of converters used at one specific time  
     * when only one converter is used - mono  
