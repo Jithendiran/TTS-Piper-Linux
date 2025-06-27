@@ -1,4 +1,6 @@
 Setup: Tested only in linux  
+
+[system design](./doc/systemdesign.md)    
 # Requirements  
 Program written using below software requirements
  1. piper TTS
@@ -18,3 +20,6 @@ Program written using below software requirements
 3. regular build `make` or debug build `make debug`
 
 How to debug, visit [debug](doc/debug.md) 
+
+> [!caution]  
+> Re-dev work going on  

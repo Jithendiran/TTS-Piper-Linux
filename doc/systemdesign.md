@@ -7,6 +7,7 @@ This is a 2 thread process.
     Detachable thread will feed input to the TTS sub process. It will then get the raw audio and play it on the audio device.
 
 No more than 2 threads and 1 subprocess for TTS will be created.
+APIs are exposed via a C/C++ shared library (.so), consumable by other apps
 
 ## Life Cycle
 
@@ -52,8 +53,8 @@ API: `char getStatus();`
 
 **Play**
 
-API: `bool play(string json)`  
-    input json in the form of string  
+API: `bool play(string json)`    
+    input json in the form of string  `{ "text": "..." }`  
     return true if success  
     This is a blocking operation  
 
@@ -114,3 +115,45 @@ API: `bool stop()`
 
 * Error recovery (what if Piper dies or ALSA crashed?)
 
+
+## Interface design
+
+```
+enum Status {
+    OK,
+    Error,
+    Busy,
+    Broken
+};
+```
+
+```
+interface IReadable {
+public:
+    size_t read(int fd, size_t size) = 0;
+};
+
+interface IWritable {
+public:
+    size_t write(int fd, size_t size) = 0;
+};
+```
+
+```
+interface IProcessControl : public IReadable, public IWritable {
+public:
+    Status init() = 0;
+    Status stop() = 0;
+};
+```
+
+```
+interface IMediaControl {
+public:
+    Status pause() = 0;
+    Status resume() = 0;
+    Status interrupt() = 0;
+    bool is_completed() const = 0;
+};
+
+```
