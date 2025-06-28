@@ -121,39 +121,66 @@ API: `bool stop()`
 ```
 enum Status {
     OK,
-    Error,
-    Busy,
-    Broken
+    Error
 };
 ```
 
 ```
 interface IReadable {
-public:
-    size_t read(int fd, size_t size) = 0;
+    size_t read(int fd, size_t size);
 };
 
 interface IWritable {
-public:
-    size_t write(int fd, size_t size) = 0;
+    size_t write(int fd, size_t size);
+};
+```
+
+Piper, Alsa and TTS controler will implements this
+```
+interface IProcessControl {
+    Status init();
+    Status stop();
 };
 ```
 
 ```
-interface IProcessControl : public IReadable, public IWritable {
-public:
-    Status init() = 0;
-    Status stop() = 0;
-};
-```
-
-```
+interface ICompletable {
+    bool is_completed();
+}
 interface IMediaControl {
-public:
-    Status pause() = 0;
-    Status resume() = 0;
-    Status interrupt() = 0;
-    bool is_completed() const = 0;
+    Status pause();
+    Status resume();
+    Status interrupt();
 };
+
+```
+
+TTS controler interface
+```
+enum TTSState{
+    Error,
+    Idle,
+    Busy
+}
+
+interface ITTSController extends IProcessControl, IMediaControl {
+    Status play();
+    TTSState get_state();
+};
+```
+
+```
+interface ITTS extends IProcessControl, IMediaControl, ICompletable, IReadable, IWritable {
+
+}
+
+interface IAudio extends IProcessControl, IMediaControl, ICompletable, IWritable {
+
+}
+
+class TTSController implements  ITTSController {
+    TTS 
+    Audio
+}
 
 ```
