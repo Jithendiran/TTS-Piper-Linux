@@ -147,7 +147,7 @@ interface IProcessControl {
 interface ICompletable {
     bool is_completed();
 }
-interface IMediaControl {
+interface IPlaybackControl {
     Status pause();
     Status resume();
     Status interrupt();
@@ -163,18 +163,18 @@ enum TTSState{
     Busy
 }
 
-interface ITTSController extends IProcessControl, IMediaControl {
+interface ITTSController extends IProcessControl, IPlaybackControl {
     Status play();
     TTSState get_state();
 };
 ```
 
 ```
-interface ITTS extends IProcessControl, IMediaControl, ICompletable, IReadable, IWritable {
+interface ITTS extends IProcessControl, IPlaybackControl, ICompletable, IReadable, IWritable {
 
 }
 
-interface IAudio extends IProcessControl, IMediaControl, ICompletable, IWritable {
+interface IAudio extends IProcessControl, IPlaybackControl, ICompletable, IWritable {
 
 }
 
@@ -184,3 +184,43 @@ class TTSController implements  ITTSController {
 }
 
 ```
+
+// factory method for creating tts and audio objects with config
+
+{
+    "tts": {
+        "piper": {
+            pitch_sound: 1,
+            speech_rate: 2
+        },
+        "coqui": {
+            config: {...}
+        }
+    },
+    "audio": {
+        "alsa": {
+            "config": {...}
+        }
+    }
+}
+
+
+interface IModel {
+
+}
+
+interface IJsonMdel implements IModel {}
+
+interface Ipiper extends IJsonMdel {
+    int get_pitch_sound();
+    void set_pitch_sound(int value);
+
+    int get_speech_rate();
+    void set_speech_rate(int value);
+}
+
+class piper implements Ipiper {
+
+}
+
+automatically get values from model inside tts 
